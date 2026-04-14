@@ -7,6 +7,18 @@ Built to be language agnostic, regulation aware,
 production grade.
 
 ---
+## Two scanners, complete coverage
+
+**Code Scanner** — reads source files and detects vulnerable
+cryptographic function calls inside actual code.
+
+**Dependency Scanner** — reads package manager files via the
+GitHub API and detects vulnerable crypto libraries imported
+into the project. Works on any public repo, no token required.
+
+Neither scanner alone is enough. A project can have clean code
+but import a vulnerable library. Or have no vulnerable imports
+but write its own broken crypto. You need both.
 
 ## What it scans for
 
@@ -45,6 +57,22 @@ Terraform · YAML · JSON · Dockerfile · Shell scripts
 - **PCI-DSS 4.0** — Payment card industry data security
 - **ISO 27001** — Information security management
 
+## Dependency scanner — package managers supported
+
+| Ecosystem | Files scanned |
+|-----------|--------------|
+| Python | requirements.txt, Pipfile, pyproject.toml |
+| Node / JS | package.json |
+| Java | pom.xml, build.gradle, build.gradle.kts |
+| Go | go.mod |
+| Rust | Cargo.toml |
+| Ruby | Gemfile |
+| PHP | composer.json |
+| .NET | .csproj, packages.config |
+
+40+ vulnerable libraries tracked across all ecosystems.
+Automatically deduplicates findings across multiple dep files.
+
 ## Posture scoring
 
 | Grade | Score | Meaning |
@@ -55,11 +83,17 @@ Terraform · YAML · JSON · Dockerfile · Shell scripts
 | D | 35-54 | High exposure, immediate action needed |
 | F | 0-34 | Critical exposure, urgent remediation |
 
-## Coming next
+## Proven on real repos
 
-- [ ] GitHub dependency scanner
-- [ ] Live TLS certificate scanner
-- [ ] Terraform / IaC scanner
-- [ ] REST API (FastAPI)
-- [ ] GitHub Action for CI/CD
-- [ ] CBOM output (CycloneDX format)
+| Repo | Code findings | Dep findings | Notes |
+|------|--------------|--------------|-------|
+| DarshanC27/quantum_ready_scanner | TLS AES-128 fallback | 0 | Flask/React — no crypto deps |
+| paramiko/paramiko | — | 2 MEDIUM | bcrypt, cryptography |
+| jpadilla/pyjwt | — | 1 MEDIUM | cryptography dependency |
+
+## Coming next
+- [ ] Posture report — combines both scanners into one score
+- [ ] FastAPI REST endpoint — so any website can call the scanner
+- [ ] GitHub Action — scans every PR automatically
+- [ ] TLS certificate scanner — checks live server certificates
+- [ ] CBOM output — CycloneDX Cryptography Bill of Materials
