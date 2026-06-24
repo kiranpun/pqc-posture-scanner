@@ -3,22 +3,19 @@
 Scans any codebase for quantum-vulnerable cryptography and produces
 a compliance-mapped posture report.
 
-Built to be language agnostic, regulation aware,
-production grade.
+Built to be language agnostic and regulation aware.
+
 
 ---
 ## Two scanners, complete coverage
 
-**Code Scanner** — reads source files and detects vulnerable
+**Code Scanner**: reads source files and detects vulnerable
 cryptographic function calls inside actual code.
 
-**Dependency Scanner** — reads package manager files via the
+**Dependency Scanner**: reads package manager files via the
 GitHub API and detects vulnerable crypto libraries imported
 into the project. Works on any public repo, no token required.
 
-Neither scanner alone is enough. A project can have clean code
-but import a vulnerable library. Or have no vulnerable imports
-but write its own broken crypto. You need both.
 
 ## What it scans for
 
