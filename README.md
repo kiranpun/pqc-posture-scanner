@@ -88,6 +88,21 @@ Automatically deduplicates findings across multiple dep files.
 | paramiko/paramiko | — | 2 MEDIUM | bcrypt, cryptography |
 | jpadilla/pyjwt | — | 1 MEDIUM | cryptography dependency |
 
+## Known limitations
+
+**Dependency scanner : cross-ecosystem name collisions**
+Some package names exist in multiple ecosystems. For example `rsa`
+exists in both Python (PyPI) and Rust (crates.io). The registry
+prioritises Python entries. A Rust project using the `rsa` crate
+will match the Python entry — risk level is equivalent but fix
+advice may differ. Full ecosystem-aware lookup is planned.
+
+**Dependency scanner : coverage**
+The scanner detects dependencies declared in standard package manager
+files. Repos with no recognised dependency file (e.g. dependencies
+declared only inside Dockerfiles or Makefiles) will show zero
+dependency findings. Code scanning still runs on all source files.
+
 ## Coming next
 - [ ] Posture report — combines both scanners into one score
 - [ ] FastAPI REST endpoint — so any website can call the scanner
