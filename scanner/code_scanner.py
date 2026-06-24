@@ -65,6 +65,10 @@ SKIP_FILE_PATTERNS = [
     "stub_*.py",
     "*_stub.py",
     "conftest.py",
+    "dep_registry.py",    
+    "report.json",       
+    "report*.json", 
+
 ]
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
