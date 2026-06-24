@@ -4,7 +4,7 @@
 VULNERABLE_LIBRARIES = {
 
     # ── Python ────────────────────────────────────────────────────────────────
-    "rsa": {
+    "python-rsa": {
         "risk":      "CRITICAL",
         "ecosystem": "Python",
         "reason":    "Pure RSA library — entirely quantum-vulnerable",
@@ -40,7 +40,7 @@ VULNERABLE_LIBRARIES = {
         "reason":    "Wraps classical OpenSSL — cipher suite config critical",
         "fix":       "Enforce TLS 1.3 + PQC cipher suites",
     },
-    "ecdsa": {
+    "python-ecdsa": {
         "risk":      "CRITICAL",
         "ecosystem": "Python",
         "reason":    "Pure ECDSA library — entirely quantum-vulnerable",
@@ -52,7 +52,7 @@ VULNERABLE_LIBRARIES = {
         "reason":    "RS256/ES256 JWT signing is quantum-vulnerable",
         "fix":       "Use HS384+ short-term; watch PQC JWT standards",
     },
-    "jwt": {
+    "python-jwt": {
         "risk":      "HIGH",
         "ecosystem": "Python",
         "reason":    "RS256/ES256 JWT signing is quantum-vulnerable",
@@ -210,7 +210,7 @@ VULNERABLE_LIBRARIES = {
     },
 
     # ── Rust ──────────────────────────────────────────────────────────────────
-    "rsa": {
+    "rust-rsa": {
         "risk":      "CRITICAL",
         "ecosystem": "Rust",
         "reason":    "RSA crate — entirely quantum-vulnerable",
@@ -234,7 +234,7 @@ VULNERABLE_LIBRARIES = {
         "reason":    "secp256k1 elliptic curve — quantum-vulnerable",
         "fix":       "pqcrypto-kyber or ml-kem crate",
     },
-    "ecdsa": {
+    "rust-ecdsa": {
         "risk":      "CRITICAL",
         "ecosystem": "Rust",
         "reason":    "ECDSA crate — entirely quantum-vulnerable",
@@ -266,7 +266,7 @@ VULNERABLE_LIBRARIES = {
         "reason":    "Ruby OpenSSL bindings — classical crypto, audit usage",
         "fix":       "Enforce TLS 1.3 configuration",
     },
-    "jwt": {
+    "ruby-jwt": {
         "risk":      "HIGH",
         "ecosystem": "Ruby",
         "reason":    "JWT gem with RS256/ES256 support",
