@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import fnmatch
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 from urllib.request import urlopen, Request
@@ -22,14 +23,14 @@ class DependencyFinding:
 
     def to_dict(self) -> dict:
         return {
-            "package":    self.package_name,
-            "version":    self.version,
-            "file":       self.dep_file,
-            "ecosystem":  self.ecosystem,
-            "risk":       self.risk,
-            "reason":     self.reason,
-            "fix":        self.fix,
-            "is_pqc":     self.is_pqc_positive,
+            "package":   self.package_name,
+            "version":   self.version,
+            "file":      self.dep_file,
+            "ecosystem": self.ecosystem,
+            "risk":      self.risk,
+            "reason":    self.reason,
+            "fix":       self.fix,
+            "is_pqc":    self.is_pqc_positive,
         }
 
 
@@ -64,7 +65,6 @@ class GitHubScanner:
     API = "https://api.github.com"
 
     def __init__(self, token: Optional[str] = None):
-        # Read from env var automatically — no token needed in code
         self.token = token or os.environ.get("GITHUB_TOKEN")
         self._headers = {"Accept": "application/vnd.github+json"}
         if self.token:
@@ -80,7 +80,6 @@ class GitHubScanner:
             result.errors.append(f"Cannot parse GitHub URL: {repo_url}")
             return result
 
-        # Get the full file tree from GitHub API
         tree = self._get(f"/repos/{owner}/{repo}/git/trees/HEAD?recursive=1")
         if not tree:
             result.errors.append(
@@ -88,7 +87,7 @@ class GitHubScanner:
             )
             return result
 
-        # Every supported dependency file and its parser
+        # Exact filename matches
         dep_files = {
             "requirements.txt":      self._parse_requirements,
             "requirements-dev.txt":  self._parse_requirements,
@@ -103,11 +102,18 @@ class GitHubScanner:
             "build.gradle.kts":      self._parse_gradle,
             "Gemfile":               self._parse_gemfile,
             "composer.json":         self._parse_composer,
-            "*.csproj":              self._parse_csproj,
             "packages.config":       self._parse_packages_config,
+            "setup.py":              self._parse_setup_py,
+            "setup.cfg":             self._parse_setup_cfg,
+            "environment.yml":       self._parse_requirements,
+            "environment.yaml":      self._parse_requirements,
         }
 
-        # Walk the repo tree and parse any dep files found
+        # Wildcard matches — fnmatch handles the pattern
+        wildcard_dep_files = {
+            "*.csproj": self._parse_csproj,
+        }
+
         for item in tree.get("tree", []):
             path     = item.get("path", "")
             filename = path.split("/")[-1]
@@ -115,13 +121,24 @@ class GitHubScanner:
             if item.get("type") != "blob":
                 continue
 
-            # Check exact filename match
+            # Exact match
             if filename in dep_files:
                 content = self._fetch_raw(owner, repo, path)
                 if content:
                     findings = dep_files[filename](content, path)
                     result.dependency_findings.extend(findings)
-        # Deduplicate — same package in multiple dep files counts once
+
+            # Wildcard match
+            else:
+                for pattern, parser in wildcard_dep_files.items():
+                    if fnmatch.fnmatch(filename, pattern):
+                        content = self._fetch_raw(owner, repo, path)
+                        if content:
+                            findings = parser(content, path)
+                            result.dependency_findings.extend(findings)
+                        break
+
+        # Deduplicate — outside the loop, runs once after all files scanned
         seen = set()
         unique = []
         for d in result.dependency_findings:
@@ -129,8 +146,8 @@ class GitHubScanner:
             if key not in seen:
                 seen.add(key)
                 unique.append(d)
-            result.dependency_findings = unique    
-        
+        result.dependency_findings = unique
+
         # Collect PQC positive signals
         for d in result.dependency_findings:
             if d.is_pqc_positive:
@@ -161,6 +178,10 @@ class GitHubScanner:
                 print("GitHub rate limit hit — set GITHUB_TOKEN env var")
             elif e.code == 404:
                 print(f"Repo not found: {endpoint}")
+            elif e.code == 429:
+                print("Rate limited — wait and retry")
+            else:
+                print(f"GitHub API error {e.code}: {endpoint}")
             return None
         except URLError as e:
             print(f"Network error: {e}")
@@ -247,7 +268,6 @@ class GitHubScanner:
         for line in content.splitlines():
             m = re.match(r'^\s+([^\s]+)\s+v([^\s]+)', line)
             if m:
-                # Use full module path for Go
                 f = self._make_finding(
                     check_package(m.group(1), m.group(2), filepath)
                 )
@@ -279,9 +299,7 @@ class GitHubScanner:
 
     def _parse_gradle(self, content: str, filepath: str) -> List[DependencyFinding]:
         findings = []
-        for m in re.finditer(
-            r'["\']([^"\']+):([^"\']+):([^"\']+)["\']', content
-        ):
+        for m in re.finditer(r'["\']([^"\']+):([^"\']+):([^"\']+)["\']', content):
             f = self._make_finding(
                 check_package(m.group(2), m.group(3), filepath)
             )
@@ -340,4 +358,40 @@ class GitHubScanner:
             )
             if f:
                 findings.append(f)
+        return findings
+
+    def _parse_setup_py(self, content: str, filepath: str) -> List[DependencyFinding]:
+        findings = []
+        m = re.search(
+            r'install_requires\s*=\s*\[([^\]]+)\]',
+            content,
+            re.DOTALL
+        )
+        if m:
+            block = m.group(1)
+            for pkg_match in re.finditer(r'["\']([A-Za-z0-9_\-\.]+)', block):
+                f = self._make_finding(
+                    check_package(pkg_match.group(1), None, filepath)
+                )
+                if f:
+                    findings.append(f)
+        return findings
+
+    def _parse_setup_cfg(self, content: str, filepath: str) -> List[DependencyFinding]:
+        findings = []
+        in_requires = False
+        for line in content.splitlines():
+            if 'install_requires' in line:
+                in_requires = True
+                continue
+            if in_requires:
+                if line.startswith('[') or (line and not line[0].isspace()):
+                    break
+                pkg = line.strip().split('>')[0].split('=')[0].split('<')[0].strip()
+                if pkg:
+                    f = self._make_finding(
+                        check_package(pkg, None, filepath)
+                    )
+                    if f:
+                        findings.append(f)
         return findings
